@@ -1,13 +1,16 @@
 import React, { useState, useRef } from 'react';
 
 const SENTENCE_WORDS = ["I'm", "looking", "forward", "to", "meet", "you."];
-const GRAMMAR_UNITS = ["不定詞 (to+動詞)", "動名詞 (~ing)", "時制 (過去/未来)", "関係代名詞"]
+const GRAMMAR_UNITS = ["不定詞 (to+動詞)", "動名詞 (~ing)", "時制 (過去/未来)", "関係代名詞"];
 
 function App() {
-  // 📱 画面のフェーズ管理: 'chat' (相談画面) -> 'select' (単語選択) -> 'slash' (斬撃)
+  // 📱 画面のフェーズ管理: 'chat' -> 'select' -> 'slash' -> 'teach' -> 'explain' -> 'bet'
   const [phase, setPhase] = useState('chat'); 
-  const [selectedUnit, setSelectedUnit] = useState(null); // 選んだ単元を覚えてお
-const [explanation, setExplanation] = useState('');     // 打ち込んだ解説を覚えておく箱
+  const [selectedUnit, setSelectedUnit] = useState(null); // 選んだ単元を覚えておく箱
+  const [explanation, setExplanation] = useState('');     // 打ち込んだ解説を覚えておく箱
+  const [coins, setCoins] = useState(100);                // 所持コイン
+  const [betAmount, setBetAmount] = useState(0);          // ベット額
+
   const [focusedIndex, setFocusedIndex] = useState(null);
   const [isDestroyed, setIsDestroyed] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -195,7 +198,6 @@ const [explanation, setExplanation] = useState('');     // 打ち込んだ解説
             >
             教える画面へ進む
             </button>
-
           )}
 
           {slashLine && (
@@ -217,67 +219,167 @@ const [explanation, setExplanation] = useState('');     // 打ち込んだ解説
 
         </div>
       )}
-      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          📱 フェーズ4: 教える画面 (超・骨組み版)
-      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {phase === 'teach' && (
-        <div>
-          <p>アオイちゃん：これってそもそも「どこの単元」がポイントだったの…？</p>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '20px', paddingTop: '60px', color: '#fff' }}>
+          <p style={{ fontSize: '20px', textAlign: 'center' }}>アオイちゃん：<br/>これってそもそも「どこの単元」がポイントだったの…？</p>
 
-          {/* 👇 ここが map を使った魔法のループ生成部分 */}
-          <div>
-            {GRAMMAR_UNITS.map((unit, index) => (
-              <button 
-                key={index} 
-                onClick={() => {
-                  setSelectedUnit(unit);
-                  setPhase('explain')
-                }}
-              >
-                {unit}
-              </button>
-            ))}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', justifyContent: 'center', marginTop: '30px' }}>
+            
+            {GRAMMAR_UNITS.map((unit, index) => {
+              // 👇 ここでマークと色を計算
+              const suits = ['♠️', '♥️', '♣️', '♦️'];
+              const suit = suits[index % 4]; 
+              const isRed = (index % 4 === 1 || index % 4 === 3);
+              const suitColor = isRed ? '#e74c3c' : '#2c3e50';
+              
+              return (
+                <div 
+                  key={index} 
+                  onClick={() => {
+                    setSelectedUnit(unit);
+                    setPhase('explain');
+                  }}
+                  style={{
+                    width: '140px',
+                    height: '200px',
+                    backgroundColor: '#fff',
+                    borderRadius: '12px',
+                    boxShadow: '0 8px 20px rgba(0,0,0,0.4)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  {/* 左上のマーク */}
+                  <div style={{ fontSize: '24px', color: suitColor, alignSelf: 'flex-start', lineHeight: '1' }}>
+                    {suit}
+                  </div>
+                  
+                  {/* 真ん中の単元名 */}
+                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#333', textAlign: 'center' }}>
+                    {unit}
+                  </div>
+
+                  {/* 右下のマーク */}
+                  <div style={{ fontSize: '24px', color: suitColor, alignSelf: 'flex-end', lineHeight: '1' }}>
+                    {suit}
+                  </div>
+                </div>
+              );
+            })}
+            
           </div>
 
-          <button onClick={() => setPhase('chat')}>
+          <button onClick={() => setPhase('chat')} style={{ marginTop: '40px', padding: '10px', backgroundColor: 'transparent', color: '#ccc', border: '1px solid #ccc', borderRadius: '8px', alignSelf: 'center' }}>
             ◀ 相談画面に戻る
           </button>
-          
         </div>
       )}
 
 
-
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          📱 フェーズ5: 解説入力画面
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {phase === 'explain' && (
-        <div>
-          <p>アオイちゃん：「<strong>{selectedUnit}</strong>」がポイントなんだね！<br />
-            じゃあ、なんで「{SENTENCE_WORDS[focusedIndex]}」は間違ってたのか、先生の言葉で教えて
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '20px', paddingTop: '60px', color: '#fff' }}>
+          <p style={{ fontSize: '18px', lineHeight: '1.5' }}>
+            アオイちゃん：「<strong>{selectedUnit}</strong>」がポイントなんだね！<br />
+            じゃあ、なんで「{SENTENCE_WORDS[focusedIndex]}」は間違ってたのか、先生の言葉で教えて！
           </p>
 
-       
           <textarea 
             value={explanation}
             onChange={(e) => setExplanation(e.target.value)}
             placeholder="ここに解説を入力してね"
-            rows={5}
-            cols={40}
+            style={{ width: '100%', height: '150px', fontSize: '16px', padding: '15px', borderRadius: '8px', border: 'none', marginTop: '20px', boxSizing: 'border-box' }}
           />
 
-          <br />
-
-          {/* 👇 送信ボタン（今はアラートが出るだけ） */}
-          <button onClick={() => alert(`送信内容：\n${explanation}`)}>
-            アオイちゃんに教える（送信）
+          <button 
+            onClick={() => setPhase('bet')}
+            style={{ marginTop: '30px', padding: '15px', fontSize: '18px', fontWeight: 'bold', backgroundColor: '#ffcc00', border: 'none', borderRadius: '8px', cursor: 'pointer', color: '#333' }}
+          >
+            次へ進む（コインを賭ける）
           </button>
 
-          <button onClick={() => setPhase('teach')}>
-            ◀ カード選択に戻る
+          <button onClick={() => setPhase('teach')} style={{ marginTop: '20px', padding: '10px', backgroundColor: 'transparent', color: '#ccc', border: '1px solid #ccc', borderRadius: '8px' }}>
+            ◀ 単元選択に戻る
           </button>
+        </div>
+      )}
 
-          <button onClick={() => setPhase('chat')}>
-            ◀ 相談画面に戻る
-          </button>
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          📱 フェーズ6: コインベット画面
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {phase === 'bet' && (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px', paddingTop: '60px', color: '#fff' }}>
+          <h2 style={{ fontSize: '28px', margin: '0 0 20px 0' }}>💰 コインを賭ける</h2>
           
+          <div style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '20px', borderRadius: '15px', width: '100%', textAlign: 'center' }}>
+            <p style={{ margin: '0 0 10px 0', fontSize: '18px' }}>現在の所持コイン: <strong>{coins}</strong> 枚</p>
+            <p style={{ margin: '0', fontSize: '20px' }}>ベット額: <strong style={{ color: '#ffcc00', fontSize: '36px' }}>{betAmount}</strong> 枚</p>
+          </div>
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center', margin: '30px 0' }}>
+            <button onClick={() => setBetAmount(betAmount + 10)} style={{ padding: '12px 20px', fontSize: '16px', borderRadius: '8px', border: 'none', backgroundColor: '#4cd137', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}>+10枚</button>
+            <button onClick={() => setBetAmount(betAmount + 50)} style={{ padding: '12px 20px', fontSize: '16px', borderRadius: '8px', border: 'none', backgroundColor: '#4cd137', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}>+50枚</button>
+            <button onClick={() => setBetAmount(coins)} style={{ padding: '12px 20px', fontSize: '16px', borderRadius: '8px', border: 'none', backgroundColor: '#ff6b6b', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}>全額マックス！</button>
+            <button onClick={() => setBetAmount(0)} style={{ padding: '12px 20px', fontSize: '16px', borderRadius: '8px', border: 'none', backgroundColor: '#ccc', color: '#333', fontWeight: 'bold', cursor: 'pointer' }}>リセット</button>
+          </div>
+
+          <button 
+            onClick={() => {
+              setCoins(coins + betAmount);
+              setPhase('result');
+            }}
+            style={{ width: '100%', padding: '20px', fontSize: '20px', fontWeight: 'bold', backgroundColor: '#ffcc00', border: 'none', borderRadius: '12px', cursor: 'pointer', color: '#333', boxShadow: '0 6px 15px rgba(255, 204, 0, 0.4)' }}
+          >
+            これで勝負する！
+          </button>
+
+          <button onClick={() => setPhase('explain')} style={{ marginTop: '30px', padding: '10px 20px', backgroundColor: 'transparent', color: '#ccc', border: '1px solid #ccc', borderRadius: '8px', cursor: 'pointer' }}>
+            ◀ 解説入力に戻る
+          </button>
+        </div>
+      )}
+{/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          📱 フェーズ7: リザルト画面 (超・骨組み版)
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {phase === 'result' && (
+        <div>
+          <h2>大正解！🎉</h2>
+
+          {/* 👩‍🎓 アオイちゃんの感謝チャット */}
+          <div>
+            <p>AI生徒 アオイ：</p>
+            <p>
+              「<strong>{selectedUnit}</strong>」がポイント<br/>
+              『{explanation}』っていう解説
+            </p>
+          </div>
+
+          {/* 💰 コイン獲得の演出 */}
+          <div>
+            <p>アオイちゃんに伝わった！</p>
+            <p>+{betAmount} コイン獲得</p>
+            <p>現在のトータル: <strong>{coins}</strong> 枚</p>
+          </div>
+
+          {/* 🔄 次の問題へ行くためのリセットボタン */}
+          <button 
+            onClick={() => {
+              // 使ったデータを綺麗にお掃除して、フェーズ1に戻る
+              setBetAmount(0);
+              setExplanation('');
+              setSelectedUnit(null);
+              setPhase('chat');
+            }}
+          >
+            次の英文の添削へ進む ➔
+          </button>
         </div>
       )}
     </div>
