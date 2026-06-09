@@ -1,40 +1,59 @@
 import React, { useState } from 'react';
 
-const SENTENCE_WORDS = ["I'm", "looking", "forward", "to", "meet", "you."];
+const QUESTION_LIST = [
+  {
+    id: 1,
+    sentenceWords: ["I'm", "looking", "forward", "to", "meet", "you."],
+    aiData: {
+      text1: "look forward to の to は",
+      blank1_options: ["不定詞", "前置詞", "接続詞"],
+      text2: "なので、後ろには",
+      blank2_options: ["動詞の原形", "名詞 (-ing形)", "過去分詞"],
+      text3: "が来ます。"
+    }
+  }
+];
+
 const GRAMMAR_UNITS = ["不定詞 (to+動詞)", "動名詞 (~ing)", "時制 (過去/未来)", "関係代名詞"];
 
 function App() {
-  // 📱 画面のフェーズ管理: 'chat' -> 'select' (ここで斬る！) -> 'teach' -> 'explain' -> 'bet' -> 'result'
+  // 👇 リストから現在の問題を引っ張ってくる処理
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const currentQuestion = QUESTION_LIST[currentQuestionIndex];
+
+  // 📱 画面のフェーズ管理: 'chat' -> 'select' -> 'teach' -> 'explain' -> 'bet' -> 'result'
   const [phase, setPhase] = useState('chat'); 
   const [selectedUnit, setSelectedUnit] = useState(null); 
-  const [explanation, setExplanation] = useState('');     
+  
+  // 📝 プルダウン用のステート
+  const [blank1, setBlank1] = useState('');
+  const [blank2, setBlank2] = useState('');
+  
   const [coins, setCoins] = useState(100);                
   const [betAmount, setBetAmount] = useState(0);          
 
   // ⚔️ 斬撃演出用のステート
   const [focusedIndex, setFocusedIndex] = useState(null);
-  const [isSlashing, setIsSlashing] = useState(false); // 剣が振られているか？
-  const [isDestroyed, setIsDestroyed] = useState(false); // 単語が割れたか？
+  const [isSlashing, setIsSlashing] = useState(false);
+  const [isDestroyed, setIsDestroyed] = useState(false);
 
   // 🎯 単語がクリックされた時の瞬間移動ダッシュ斬撃ロジック
   const handleWordClick = (index) => {
-    if (isSlashing || isDestroyed) return; // 連打防止
+    if (isSlashing || isDestroyed) return;
     
     setFocusedIndex(index);
-    setIsSlashing(true); // 剣のアニメーション開始！
+    setIsSlashing(true);
     
-    if (navigator.vibrate) navigator.vibrate(50); // スマホのブルッ（軽め）
+    if (navigator.vibrate) navigator.vibrate(50);
 
-    // 0.2秒後（剣が届いた瞬間）に単語を割る
     setTimeout(() => {
       setIsDestroyed(true);
-      if (navigator.vibrate) navigator.vibrate(120); // 斬った瞬間の強いブルッ
+      if (navigator.vibrate) navigator.vibrate(120);
     }, 200);
 
-    // 1.2秒後に次の画面（教える画面）へ自動で進む
     setTimeout(() => {
       setPhase('teach');
-      setIsSlashing(false); // 剣を元の状態に戻す
+      setIsSlashing(false);
     }, 1200);
   };
 
@@ -51,22 +70,16 @@ function App() {
         display: 'flex', flexDirection: 'column'
       }}
     >
-      {/* 🌟 アニメーションの設計図 */}
       <style>{`
-        /* 画面が下からフワッと出る動き */
         @keyframes slideUp {
           from { transform: translateY(60px); opacity: 0; }
           to { transform: translateY(0); opacity: 1; }
         }
-        
-        /* 青い斬撃エフェクト（左から右へシャキン！） */
         @keyframes flashSlash {
           0% { opacity: 0; transform: translateY(-50%) rotate(20deg) scaleX(0); }
           50% { opacity: 1; transform: translateY(-50%) rotate(20deg) scaleX(1.2); }
           100% { opacity: 0; transform: translateY(-50%) rotate(20deg) scaleX(1.5); }
         }
-
-        /* ⚔️ 剣が単語の上で直接振り下ろされる動き */
         @keyframes slashSwordOnWord {
           0% { opacity: 0; transform: translate(-40px, -60px) rotate(-40deg); }
           20% { opacity: 1; transform: translate(-20px, -40px) rotate(-20deg); }
@@ -99,8 +112,9 @@ function App() {
             <p style={{ color: '#333', fontSize: '18px', margin: '0 0 20px 0', fontWeight: 'bold' }}>
               先生、この例文作ったんだけど、合ってるかな...？
             </p>
+            {/* 👇 ここも currentQuestion から取得するように修正 */}
             <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#2c3e50', lineHeight: '1.4' }}>
-              I'm looking forward to meet you.
+              {currentQuestion.sentenceWords.join(' ')}
             </div>
           </div>
 
@@ -127,53 +141,33 @@ function App() {
       )}
 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          📱 フェーズ2: 単語選択画面（直接斬撃スタイル）
+          📱 フェーズ2: 単語選択画面
       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {phase === 'select' && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '20px', paddingTop: '80px', position: 'relative' }}>
           <h2 style={{ color: '#fff', textAlign: 'center', marginBottom: '30px', zIndex: 1 }}>タップして間違っている単語を斬れ！</h2>
           
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', justifyContent: 'center', zIndex: 1 }}>
-            {SENTENCE_WORDS.map((word, index) => {
+            {/* 👇 ここも currentQuestion から取得するように修正 */}
+            {currentQuestion.sentenceWords.map((word, index) => {
               const isTarget = focusedIndex === index;
               return (
                 <div 
                   key={index} 
                   onClick={() => handleWordClick(index)}
                   style={{ 
-                    position: 'relative', // 斬撃線を中に入れるため
+                    position: 'relative', 
                     padding: '15px 25px', backgroundColor: '#333', color: '#fff', fontSize: '24px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
-                    // 斬られた単語はパカンと割れる演出
                     transform: (isTarget && isDestroyed) ? 'scale(1.2) rotate(15deg) translateY(20px)' : 'scale(1)',
                     opacity: (isTarget && isDestroyed) ? 0 : 1,
                     transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
                   }}
                 >
                   {word}
-
-                  {/* ⚔️ タップした単語の上にだけ現れる「剣」と「斬撃の光」 */}
                   {isTarget && isSlashing && (
                     <>
-                      {/* 青い斬撃エフェクト */}
-                      <div style={{
-                        position: 'absolute', top: '50%', left: '-50%', width: '200%', height: '6px',
-                        backgroundColor: '#fff', boxShadow: '0 0 20px #00e5ff',
-                        transformOrigin: 'left center',
-                        animation: 'flashSlash 0.25s ease-out forwards',
-                        zIndex: 10, pointerEvents: 'none'
-                      }}/>
-                      
-                      {/* 日本刀（剣）の本体 */}
-                      <div style={{
-                        position: 'absolute', 
-                        top: '0px', left: '50%',
-                        width: '12px', height: '180px', // 単語の上で振るため少し短め
-                        background: 'linear-gradient(to bottom, #ffffff 0%, #00e5ff 60%, #1e293b 100%)',
-                        borderRadius: '6px 6px 2px 2px',
-                        transformOrigin: 'bottom center',
-                        animation: 'slashSwordOnWord 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
-                        zIndex: 11, pointerEvents: 'none'
-                      }}>
+                      <div style={{ position: 'absolute', top: '50%', left: '-50%', width: '200%', height: '6px', backgroundColor: '#fff', boxShadow: '0 0 20px #00e5ff', transformOrigin: 'left center', animation: 'flashSlash 0.25s ease-out forwards', zIndex: 10, pointerEvents: 'none' }}/>
+                      <div style={{ position: 'absolute', top: '0px', left: '50%', width: '12px', height: '180px', background: 'linear-gradient(to bottom, #ffffff 0%, #00e5ff 60%, #1e293b 100%)', borderRadius: '6px 6px 2px 2px', transformOrigin: 'bottom center', animation: 'slashSwordOnWord 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards', zIndex: 11, pointerEvents: 'none' }}>
                          <div style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', height: '30px', backgroundColor: '#001a33', borderRadius: '0 0 2px 2px', borderTop: '4px solid #ffd700' }} />
                       </div>
                     </>
@@ -187,19 +181,8 @@ function App() {
             ◀ 相談画面に戻る
           </button>
 
-          {/* ⚔️ 普段は下で待機している剣（斬る瞬間だけ非表示にする！） */}
           {!isSlashing && (
-            <div style={{
-              position: 'absolute', 
-              bottom: '5%', left: '50%',
-              width: '12px', height: '250px',
-              background: 'linear-gradient(to bottom, #ffffff 0%, #00e5ff 60%, #1e293b 100%)',
-              borderRadius: '6px 6px 2px 2px',
-              transform: 'translateX(-50%) rotate(-10deg)',
-              transformOrigin: 'bottom center',
-              boxShadow: '0 0 15px rgba(0,229,255,0.4)',
-              pointerEvents: 'none', zIndex: 10
-            }}>
+            <div style={{ position: 'absolute', bottom: '5%', left: '50%', width: '12px', height: '250px', background: 'linear-gradient(to bottom, #ffffff 0%, #00e5ff 60%, #1e293b 100%)', borderRadius: '6px 6px 2px 2px', transform: 'translateX(-50%) rotate(-10deg)', transformOrigin: 'bottom center', boxShadow: '0 0 15px rgba(0,229,255,0.4)', pointerEvents: 'none', zIndex: 10 }}>
               <div style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', height: '40px', backgroundColor: '#001a33', borderRadius: '0 0 2px 2px', borderTop: '4px solid #ffd700' }} />
             </div>
           )}
@@ -249,21 +232,39 @@ function App() {
       )}
 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          📱 フェーズ5: 解説入力画面
+          📱 フェーズ5: 解説入力画面 (骨組みプルダウン)
       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {phase === 'explain' && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '20px', paddingTop: '60px', color: '#fff', animation: 'slideUp 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards' }}>
           <p style={{ fontSize: '18px', lineHeight: '1.5' }}>
             アオイちゃん：「<strong>{selectedUnit}</strong>」がポイントなんだね！<br />
-            じゃあ、なんで「{SENTENCE_WORDS[focusedIndex]}」は間違ってたのか、先生の言葉で教えて！
+            {/* 👇 ここも currentQuestion から取得するように修正 */}
+            じゃあ、なんで「{currentQuestion.sentenceWords[focusedIndex]}」は間違ってたのか、先生の言葉で教えて！
           </p>
 
-          <textarea 
-            value={explanation}
-            onChange={(e) => setExplanation(e.target.value)}
-            placeholder="ここに解説を入力してね"
-            style={{ width: '100%', height: '150px', fontSize: '16px', padding: '15px', borderRadius: '8px', border: 'none', marginTop: '20px', boxSizing: 'border-box' }}
-          />
+          <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '15px', color: '#333', fontSize: '16px', lineHeight: '2.5', marginTop: '20px' }}>
+            {currentQuestion.aiData.text1}
+            
+            {/* 1つ目のプルダウン */}
+            <select value={blank1} onChange={(e) => setBlank1(e.target.value)} style={{ margin: '0 10px', padding: '5px' }}>
+              <option value="">選択...</option>
+              {currentQuestion.aiData.blank1_options.map((option, index) => (
+                <option key={index} value={option}>{option}</option>  
+              ))}
+            </select>
+            
+            {currentQuestion.aiData.text2}
+            
+            {/* 2つ目のプルダウン */}
+            <select value={blank2} onChange={(e) => setBlank2(e.target.value)} style={{ margin: '0 10px', padding: '5px' }}>
+              <option value="">選択...</option>
+              {currentQuestion.aiData.blank2_options.map((option, index) => (
+                <option key={index} value={option}>{option}</option>  
+              ))}
+            </select>
+            
+            {currentQuestion.aiData.text3}
+          </div>
 
           <button 
             onClick={() => setPhase('bet')}
@@ -328,7 +329,9 @@ function App() {
             <p style={{ fontWeight: 'bold' }}>AI生徒 アオイ：</p>
             <p>
               「<strong>{selectedUnit}</strong>」がポイントで、<br/>
-              『{explanation}』っていう解説、めちゃくちゃ分かりやすい！
+              {/* 👇 最終的な穴埋めの完成文を表示 */}
+              『{currentQuestion.aiData.text1} <strong>{blank1}</strong> {currentQuestion.aiData.text2} <strong>{blank2}</strong> {currentQuestion.aiData.text3}』<br/>
+              っていう解説、めちゃくちゃ分かりやすい！
             </p>
           </div>
           <div style={{ marginTop: '30px', textAlign: 'center' }}>
@@ -338,8 +341,10 @@ function App() {
           </div>
           <button 
             onClick={() => {
+              // リセットして最初の画面へ
               setBetAmount(0);
-              setExplanation('');
+              setBlank1('');
+              setBlank2('');
               setSelectedUnit(null);
               setFocusedIndex(null);
               setIsDestroyed(false);

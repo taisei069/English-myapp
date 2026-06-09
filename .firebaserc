@@ -1,5 +1,7 @@
 {
   "projects": {
     "default": "english-app-676fe"
-  }
+  },
+  "targets": {},
+  "etags": {}
 }
