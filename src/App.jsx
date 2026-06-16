@@ -81,7 +81,7 @@ function App() {
     setMessages(prev => [...prev, { 
       id: Date.now(), 
       sender: 'aoi', 
-      text: `なるほど…！\nでも先生、それって本当に合ってる？自信はある？` 
+      text: `なるほど…！\nでも先生、それって本当に合ってる？どれくらい自信ありますか？` 
     }]);
 
     setTimeout(() => {
@@ -89,16 +89,37 @@ function App() {
     }, 1200);
   };
 
-  const handleResult = () => {
+const handleResult = async () => {
+    // 1. コインを追加
     setCoins(coins + betAmount);
+
+    // 2. 送信する解説文を組み立てる
     const finalExplanation = `${currentQuestion.aiData.text1} ${blank1} ${currentQuestion.aiData.text2} ${blank2} ${currentQuestion.aiData.text3}`;
     
+    // 3. 自分の送信内容を一旦チャットに表示（先生のメッセージ）
     setMessages(prev => [...prev, { id: Date.now(), sender: 'teacher', text: finalExplanation }]);
     setPhase('result');
 
-    setTimeout(() => {
-      setMessages(prev => [...prev, { id: Date.now()+1, sender: 'aoi', text: `なるほど大正解！そういうことか！\n先生のおかげで完全に理解したよ！🎉` }]);
-    }, 1000);
+    try {
+      // 4. FlaskサーバーへPOST通信！
+      const response = await fetch('http://127.0.0.1:5000/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ explanation: finalExplanation })
+      });
+
+      // 5. FlaskからJSONデータを受け取る
+      const data = await response.json(); 
+      
+      // 6. 受け取ったJSONを分解してアオイちゃんの返答として表示
+      const aiText = `【フクロウ先生の添削】\n${data.feedback}\n\n【さらに深い補足】\n${data.deep_dive}`;
+      
+      setMessages(prev => [...prev, { id: Date.now() + 1, sender: 'aoi', text: aiText }]);
+
+    } catch (error) {
+      console.error("通信エラー:", error);
+      setMessages(prev => [...prev, { id: Date.now() + 1, sender: 'aoi', text: "先生、今ちょっと返事ができないみたい…！" }]);
+    }
   };
 
   return (
