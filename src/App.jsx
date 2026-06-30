@@ -2,14 +2,19 @@ import React, { useState, useRef, useEffect } from 'react';
 
 const GRAMMAR_UNITS = ["不定詞 (to+動詞)", "動名詞 (~ing)", "時制 (過去/未来)", "関係代名詞", "三単現のs", "be動詞と一般動詞", "助動詞", "前置詞"];
 
+// 🌟 追加：1回のレッスンで出題する問題数を設定
+const MAX_QUESTIONS = 5; 
+
 function App() {
   const [currentQuestion, setCurrentQuestion] = useState(null); 
   const [isLoadingQuestion, setIsLoadingQuestion] = useState(true); 
+  
+  // 🌟 追加：現在の問題数をカウントするstate
+  const [questionCount, setQuestionCount] = useState(1);
 
   const [phase, setPhase] = useState('chat'); 
   const [selectedUnit, setSelectedUnit] = useState(null); 
   
-  // 🌟 変更点1：穴埋め用のstateを削除し、自由記述用のstateとRefを追加
   const [explanationText, setExplanationText] = useState('');
   const textareaRef = useRef(null);
 
@@ -58,20 +63,16 @@ function App() {
     fetchNewQuestion();
   }, []); 
 
-  // 🌟 追加：テキストエリアのカーソル位置に文字を挿入するロジック
   const insertText = (textToInsert) => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
-    // 現在のカーソル位置（選択範囲）を取得
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     
-    // カーソル位置を基準に文字列を合体
     const newText = explanationText.substring(0, start) + textToInsert + explanationText.substring(end);
     setExplanationText(newText);
 
-    // 文字を挿入した後、カーソルを挿入した文字の直後に移動させる（Reactのレンダリングを待つためsetTimeoutを使用）
     setTimeout(() => {
       textarea.selectionStart = textarea.selectionEnd = start + textToInsert.length;
       textarea.focus();
@@ -112,22 +113,30 @@ function App() {
   };
 
   const handleExplainSubmit = () => {
+    // 🌟 修正：送信ボタンを押した瞬間に、先生（自分）の入力した文章をチャットに出す！
+    setMessages(prev => [...prev, { id: Date.now(), sender: 'teacher', text: explanationText }]);
+    
     setPhase('transition');
-    setMessages(prev => [...prev, { 
-      id: Date.now(), 
-      sender: 'aoi', 
-      text: `なるほど…！\nでも先生、それって本当に合ってる？どれくらい自信ありますか？` 
-    }]);
 
+    // 🌟 修正：先生の文章が出てから、ちょっと間を空けてケンが反応する
     setTimeout(() => {
-      setPhase('bet');
-    }, 1200);
+      setMessages(prev => [...prev, { 
+        id: Date.now() + 1, 
+        sender: 'aoi', 
+        text: `なるほど…！\nでもユーザ、それって本当に合ってる？どれくらい自信ありますか？` 
+      }]);
+
+      setTimeout(() => {
+        setPhase('bet');
+      }, 1200);
+    }, 800); // 0.8秒後にケンのセリフ
   };
 
   const handleResult = async () => {
-    // 🌟 変更点2：自由記述のテキストをそのまま送信内容にする
     const finalExplanation = explanationText;
-    setMessages(prev => [...prev, { id: Date.now(), sender: 'teacher', text: finalExplanation }]);
+    
+    // 🌟 修正：ここはすでに上の handleExplainSubmit で表示するようにしたので削除（二重表示を防ぐ）
+    // setMessages(prev => [...prev, { id: Date.now(), sender: 'teacher', text: finalExplanation }]);
     
     setPhase('judging');
 
@@ -168,12 +177,20 @@ function App() {
   };
 
   const handleNextQuestion = () => {
+    // 🌟 追加：MAX_QUESTIONSに到達していたら、終了画面へ移行
+    if (questionCount >= MAX_QUESTIONS) {
+      setPhase('finish');
+      return;
+    }
+
     setBetAmount(0); 
-    // 🌟 変更点3：入力欄をリセット
     setExplanationText('');
     setSelectedUnit(null); 
     setFocusedIndex(null); 
     setIsDestroyed(false); 
+    
+    // 🌟 追加：問題カウンターを進める
+    setQuestionCount(prev => prev + 1);
     
     setMessages(prev => [...prev, { id: Date.now(), sender: 'teacher', text: `よし、次の問題に行こう！`}]);
     fetchNewQuestion(); 
@@ -202,7 +219,6 @@ function App() {
           80% { transform: translate(32px, 12px) rotate(0deg); opacity: 1; }
           100% { transform: translate(45px, 0px) rotate(20deg); opacity: 0; }
         }
-        
         button { transition: opacity 0.1s; }
         button:active { opacity: 0.7; }
         .english-text { font-family: "Georgia", serif; font-size: 18px; letter-spacing: 0.5px; }
@@ -214,29 +230,42 @@ function App() {
          <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Ken&backgroundColor=ffd5dc" alt="ケン" style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '1px solid #cbd5e1' }} />
           <div>
             <h2 style={{ margin: 0, fontSize: '15px', fontWeight: '600' }}>ケン</h2>
-            <span style={{ color: '#94a3b8', fontSize: '12px' }}>{phase === 'result' ? 'Lesson Clear' : 'Learning...'}</span>
+            <span style={{ color: '#94a3b8', fontSize: '12px' }}>{phase === 'finish' ? 'Lesson Clear' : 'Learning...'}</span>
           </div>
         </div>
-        <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: '6px 12px', borderRadius: '12px', fontSize: '14px', fontWeight: '600' }}>
-          🪙 {coins}枚
+        
+        {/* 🌟 変更：ヘッダーに問題数カウンターを追加 */}
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: '6px 12px', borderRadius: '12px', fontSize: '14px', fontWeight: '600' }}>
+            📝 {questionCount}/{MAX_QUESTIONS}問
+          </div>
+          <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: '6px 12px', borderRadius: '12px', fontSize: '14px', fontWeight: '600' }}>
+            🪙 {coins}枚
+          </div>
         </div>
       </div>
 
-      {/* 💬 チャット表示エリア */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+{/* 💬 チャット表示エリア */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {messages.map(msg => {
           const isAoi = msg.sender === 'aoi';
           const isOwl = msg.sender === 'owl';
+          const isTeacher = !isAoi && !isOwl;
           
-          let avatarSrc = "https://api.dicebear.com/7.x/avataaars/svg?seed=Ken&backgroundColor=ffd5dc";
+          // 🌟 変更：ケンのアイコンをNotion風に変更
+          let avatarSrc = "https://api.dicebear.com/7.x/notionists/svg?seed=Felix&backgroundColor=ffd5dc";
           let bubbleBg = "#fff";
+          let senderName = "ケン(AI生徒)";
 
-          if (!isAoi && !isOwl) {
-            avatarSrc = "https://api.dicebear.com/7.x/avataaars/svg?seed=Teacher&backgroundColor=b6e3f4";
+          if (isTeacher) {
+            avatarSrc = "https://api.dicebear.com/7.x/notionists/svg?seed=Teacher&backgroundColor=e2e8f0";
             bubbleBg = "#e0f2fe";
+            senderName = "あなた";
           } else if (isOwl) {
-            avatarSrc = "https://ui-avatars.com/api/?name=👨‍🏫&background=f59e0b&color=fff&size=150";
+            // 🌟 変更：田中先生のアイコンを絵文字からNotion風に変更
+            avatarSrc = "https://api.dicebear.com/7.x/notionists/svg?seed=Oliver&backgroundColor=fef3c7";
             bubbleBg = "#fef3c7";
+            senderName = "田中先生（AI先生）";
           }
 
           const formattedText = msg.text.split('\n').map((line, i) => (
@@ -247,22 +276,31 @@ function App() {
           ));
 
           return (
-            <div key={msg.id} style={{ display: 'flex', justifyContent: isAoi || isOwl ? 'flex-start' : 'flex-end', gap: '10px', alignItems: 'flex-start' }}>
-             {(isAoi || isOwl) && <img src={avatarSrc} alt="sender" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1px solid #cbd5e1' }} />}
-              <div style={{
-                maxWidth: '75%',
-                backgroundColor: bubbleBg,
-                color: '#334155',
-                padding: '12px 16px',
-                borderRadius: '12px',
-                fontSize: '15px',
-                lineHeight: '1.6',
-                border: '1px solid #cbd5e1',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-              }}>
-                {formattedText}
+            <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isTeacher ? 'flex-end' : 'flex-start', width: '100%' }}>
+              <span style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', marginLeft: isTeacher ? '0' : '44px', marginRight: isTeacher ? '44px' : '0', fontWeight: 'bold' }}>
+                {senderName}
+              </span>
+              <div style={{ display: 'flex', flexDirection: isTeacher ? 'row-reverse' : 'row', gap: '10px', alignItems: 'flex-start', maxWidth: '85%' }}>
+                
+                {/* 枠線をなくし、影をふんわりさせてリッチな質感に */}
+                <img src={avatarSrc} alt="sender" style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
+                
+                <div style={{
+                  backgroundColor: bubbleBg,
+                  color: '#334155',
+                  padding: '14px 18px',
+                  borderRadius: '16px',
+                  borderTopLeftRadius: (isAoi || isOwl) ? '4px' : '16px',
+                  borderTopRightRadius: isTeacher ? '4px' : '16px',
+                  fontSize: '15px',
+                  lineHeight: '1.6',
+                  border: isOwl ? '2px solid #f59e0b' : '1px solid #cbd5e1',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                  position: 'relative'
+                }}>
+                  {formattedText}
+                </div>
               </div>
-             {!isAoi && !isOwl && <img src={avatarSrc} alt="先生" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1px solid #0284c7' }} />}
             </div>
           );
         })}
@@ -281,7 +319,34 @@ function App() {
           </div>
         )}
 
-        {currentQuestion && (
+        {/* 🌟 追加：全問完了時のフィニッシュ画面 */}
+        {phase === 'finish' && (
+          <div style={{ animation: 'slideUp 0.2s ease-out', textAlign: 'center', padding: '10px' }}>
+            <h2 style={{ color: '#0284c7', margin: '0 0 12px 0', fontSize: '20px' }}>🎉 レッスン完了！</h2>
+            <p style={{ color: '#475569', fontSize: '15px', marginBottom: '20px', lineHeight: '1.5' }}>
+              すべての問題を教え終わりました。<br/>
+              最終獲得コイン: <strong style={{ color: '#f59e0b' }}>{coins} 枚</strong>
+            </p>
+            <button 
+              onClick={() => {
+                // リセットして最初から
+                setCoins(100);
+                setQuestionCount(1);
+                setBetAmount(0);
+                setExplanationText('');
+                setSelectedUnit(null);
+                setFocusedIndex(null);
+                setIsDestroyed(false);
+                fetchNewQuestion();
+              }}
+              style={{ width: '100%', padding: '14px', fontSize: '16px', fontWeight: '600', borderRadius: '8px', border: 'none', backgroundColor: '#10b981', color: '#fff', cursor: 'pointer', boxShadow: '0 4px 0 #059669' }}
+            >
+              最初からもう一度プレイ
+            </button>
+          </div>
+        )}
+
+        {currentQuestion && phase !== 'finish' && (
           <>
             {phase === 'chat' && (
               <button 
@@ -352,12 +417,10 @@ function App() {
               </div>
             )}
 
-            {/* 🌟 変更点4：自由記述＆ヒントワードUIの実装 */}
             {phase === 'explain' && (
               <div style={{ animation: 'slideUp 0.2s ease-out' }}>
                 <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid #cbd5e1', marginBottom: '12px' }}>
                   
-                  {/* ヒントワードエリア */}
                   <div style={{ marginBottom: '12px' }}>
                     <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>
                       💡 ヒントワード（タップで入力）
@@ -375,7 +438,6 @@ function App() {
                     </div>
                   </div>
 
-                  {/* 自由記述エリア */}
                   <textarea
                     ref={textareaRef}
                     value={explanationText}
@@ -387,10 +449,15 @@ function App() {
                     }}
                   />
 
-                  {/* 骨組みを作るボタン */}
                   <div style={{ textAlign: 'right', marginTop: '8px' }}>
                     <button 
-                      onClick={() => setExplanationText(currentQuestion.skeleton || '')} 
+                      onClick={() => {
+                        if (currentQuestion && currentQuestion.skeleton) {
+                          setExplanationText(currentQuestion.skeleton);
+                        } else {
+                          console.log("骨組みデータがありません");
+                        }
+                      }} 
                       style={{ padding: '6px 12px', backgroundColor: '#fff', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
                     >
                       ≡ 骨組みを作る
@@ -442,7 +509,7 @@ function App() {
                       onClick={handleNextQuestion}
                       style={{ width: '100%', padding: '14px', fontSize: '16px', fontWeight: '600', borderRadius: '8px', border: 'none', backgroundColor: '#10b981', color: '#fff', cursor: 'pointer', boxShadow: '0 4px 0 #059669' }}
                     >
-                      次の英文へ進む
+                      {questionCount >= MAX_QUESTIONS ? "レッスンを完了する" : "次の英文へ進む"}
                     </button>
                   </>
                 ) : (
@@ -476,4 +543,4 @@ function App() {
   );
 }
 
-export default App;
+export default App; 
